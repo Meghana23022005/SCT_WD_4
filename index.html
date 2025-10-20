@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Accessible To-Do App with Date & Time</title>
+  <style>
+    * { box-sizing: border-box; font-family: Arial, sans-serif; }
+    body { background: #121212; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+    .card { background: #1e1e1e; padding: 20px; border-radius: 10px; width: 90%; max-width: 500px; }
+    label { display: block; margin-bottom: 4px; }
+    input, button { padding: 10px; border-radius: 6px; border: 1px solid #333; background: #222; color: #fff; }
+    button { border: none; background: #ffcc00; color: #000; cursor: pointer; }
+    .row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+    .input-group { display: flex; gap: 8px; align-items: center; }
+    ul { padding-left: 0; list-style: none; margin-top: 12px; }
+    li { background: #2c2c2c; padding: 10px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+    .date-time { font-size: 12px; color: #bbb; margin-top: 4px; }
+    button.completeBtn { background: #28a745; color: #fff; }
+    button.editBtn { background: #17a2b8; color: #fff; }
+    button.delBtn { background: #dc3545; color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Accessible To‑Do Web App</h2>
+
+    <form id="taskForm" autocomplete="off">
+      <div class="row">
+        <label for="taskInput">Task</label>
+        <input id="taskInput" type="text" placeholder="Enter task" required />
+      </div>
+
+      <div class="row input-group">
+        <div>
+          <label for="taskDateTime">Task Date and Time</label>
+          <input 
+            id="taskDateTime" 
+            type="datetime-local" 
+            name="taskDateTime"
+            min="2025-01-01T00:00"
+            max="2030-12-31T23:59"
+            required
+          />
+        </div>
+        <button id="addBtn" type="submit">Add Task</button>
+      </div>
+    </form>
+
+    <ul id="taskList"></ul>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const taskForm = document.getElementById('taskForm');
+      const taskInput = document.getElementById('taskInput');
+      const taskDateTime = document.getElementById('taskDateTime');
+      const taskList = document.getElementById('taskList');
+
+      let tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+
+      function save() {
+        localStorage.setItem('tasks', JSON.stringify(tasks));
+      }
+
+      function formatDateTime(dateTimeString) {
+        if (!dateTimeString) return '';
+        const d = new Date(dateTimeString);
+        if (isNaN(d.getTime())) return '';
+        return d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+      }
+
+      function render() {
+        taskList.innerHTML = '';
+        tasks.forEach((t, i) => {
+          const li = document.createElement('li');
+          const left = document.createElement('div');
+          left.innerHTML = `<strong>${escapeHtml(t.text)}</strong>
+                            <div class="date-time">${formatDateTime(t.dateTime)}</div>`;
+
+          const actions = document.createElement('div');
+          actions.innerHTML = `
+            <button data-i="${i}" class="completeBtn" aria-label="Mark task complete">✔</button>
+            <button data-i="${i}" class="editBtn" aria-label="Edit task">✎</button>
+            <button data-i="${i}" class="delBtn" aria-label="Delete task">🗑</button>
+          `;
+
+          if (t.completed) {
+            left.querySelector('strong').style.textDecoration = 'line-through';
+            left.querySelector('strong').style.color = '#888';
+          }
+
+          li.appendChild(left);
+          li.appendChild(actions);
+          taskList.appendChild(li);
+        });
+      }
+
+      taskForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const text = taskInput.value.trim();
+        const dateTime = taskDateTime.value;
+
+        if (!text || !dateTime) {
+          alert('Both task and date/time are required.');
+          return;
+        }
+
+        tasks.push({ text, dateTime, completed: false });
+        save();
+        render();
+
+        taskInput.value = '';
+        taskDateTime.value = '';
+        taskInput.focus();
+      });
+
+      taskList.addEventListener('click', (e) => {
+        const btn = e.target;
+        const idx = btn.dataset && btn.dataset.i;
+        if (idx === undefined) return;
+
+        const i = Number(idx);
+        if (btn.classList.contains('completeBtn')) {
+          tasks[i].completed = !tasks[i].completed;
+          save();
+          render();
+        } else if (btn.classList.contains('editBtn')) {
+          const newText = prompt('Edit task:', tasks[i].text);
+          if (newText && newText.trim() !== '') {
+            tasks[i].text = newText.trim();
+            save();
+            render();
+          }
+        } else if (btn.classList.contains('delBtn')) {
+          if (confirm('Delete this task?')) {
+            tasks.splice(i, 1);
+            save();
+            render();
+          }
+        }
+      });
+
+      render();
+    });
+  </script>
+</body>
+</html>
